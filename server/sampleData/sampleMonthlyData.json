@@ -1,0 +1,111 @@
+{
+	"entry_date" : "02-15-2016",
+	"production" : {
+		"dr_production" : 1234,
+		"hg_production" : 1234,
+		"products" : 1234
+	},
+	"dental_service_fees" : 1234,
+	"employee_benefits" : {
+		"401k_employer_contribution_admin" : 1234,
+		"401k_employer_contribution_assistant" : 1234,
+		"401k_employer_contribution_doctor" : 1234,
+		"401k_employer_contribution_hygiene" : 1234,
+		"commute" : 1234,
+		"elective_misc" : 1234,
+		"gym_membership" : 1234,
+		"health_insurance": 1234,
+		"parking" : 1234,
+		"pension_plan" : 1234
+	},
+	"human_physical_resources" : {
+		"cpd_doctor_fees_registration" : 1234,
+		"cpd_doctor_meals" : 1234,
+		"cpd_doctor_travel" : 1234,
+		"cpd_staff_fees_registration" : 1234,
+		"cpd_staff_travel" : 1234,
+		"equipment_rental" : 1234,
+		"equipment_repairs" : 1234,
+		"small_equipment" : 1234
+	},
+	"insurance_expense" : {
+		"business" : 1234,
+		"facility" : 1234,
+		"malpractice" : 1234,
+		"workerscomp": 1234
+	},
+	"it_expense": {
+		"domain_hosting": 1234,
+		"internet" : 1234,
+		"it_services": 1234
+	},
+	"laboratory_expense": {
+		"appliances": 1234,
+		"implant_supplies": 1234,
+		"laboratory_restorative": 1234
+	},
+	"occupancy_expense": {
+		"parking" : 1234,
+		"property_tax" : 1234,
+		"rent" : 1234,
+		"security" : 1234
+	},
+	"other_administrative_expense": {
+		"bank_fees" : 1234,
+		"break_room_supplies" : 1234,
+		"collection_cost" : 1234,
+		"donations" : 1234,
+		"dues_subscription" : 1234,
+		"front_office_vistor_exp" : 1234,
+		"laundry_uniform" : 1234,
+		"license_permits" : 1234,
+		"merchant_fees" : 1234,
+		"office_supplies" : 1234,
+		"payroll_processing" : 1234,
+		"postage_delivery" : 1234,
+		"telephone_internet" : 1234
+	},
+	"payroll_expense": {
+		"1099_employee" : 1234,
+		"payroll_taxes_admin" : 1234,
+		"wage_admin" : 1234,
+		"payroll_taxes_assistant" : 1234,
+		"wages_assistant" : 1234,
+		"payroll_taxes_dr" : 1234,
+		"wages_dr" : 1234,
+		"payroll_taxes_hg" : 1234,
+		"wages_hg" : 1234
+	},
+	"professional_fees": {
+		"accounting" : 1234,
+		"legal" : 1234,
+		"strategic" : 1234
+	},
+	"sales_marketing": {
+		"advertising" : 1234,
+		"conferences" : 1234,
+		"gifts" : 1234,
+		"promotional" : 1234
+	},
+	"supplies_consumables": {
+		"supplies_all" : 1234,
+		"supplies_clinical" : 1234,
+		"supplies_hg" : 1234,
+		"waste_disposal" : 1234
+	},
+	"tax_expense": {
+		"tax_bo" : 1234,
+		"tax_federal" : 1234,
+		"tax_personal_property" : 1234
+	},
+	"travel_meals": {
+		"auto_expense" : 1234,
+		"meals_promo" : 1234,
+		"meals_staff" : 1234
+	},
+	"interest_income" : 1234,
+	"other_income" : 1234,
+	"interest_expense": 1234,
+	"other_expense" : 1234,
+	"transfer_to_solvency": 1234
+}

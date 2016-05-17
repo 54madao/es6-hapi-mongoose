@@ -1,0 +1,13 @@
+{
+	"entry_date": "01-01-2016",
+	"staff" : 25,
+	"occupancy": 6,
+	"hr_resources": 3,
+	"supplies": 4,
+	"laboratory": 10,
+	"services": 6,
+	"sales_marketing": 1,
+	"overhead_total": 55,
+	"dr_salaries": 24,
+	"all_expenses": 79
+}

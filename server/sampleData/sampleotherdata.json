@@ -1,0 +1,118 @@
+{
+  "Collections":{
+  	      "Total Gross Collections":1,
+          "Refunds":1,
+          "Total Net Collections":1,
+          "Over the Counter Collections":1
+  },
+  "Accounts Receivable":{
+        "0-30":1,
+        "31-60":1,
+        "61-90":1
+  },
+  "Patient Activity":{
+          "Active Patient Count Adjusted":1,
+          "New Patients Age 0-30":1,
+          "New Patients Age 31-60":1,
+          "New Patients Age 61-90":1,
+          "# referred by patients of record":1,
+          "# referred by other doctors":1,
+          "# formal review of findings":1,
+          "# actually appointed from formal review":1,
+          "# informal review of findings":1,
+          "# actually appointed from informal review":1,
+          "Due in recare this month":1
+  },
+  "Production by Category $":{
+          "A Services":1,
+          "B Services":1,
+          "C Services":1,
+          "Production Adjustments":1
+  },
+  "Staff Compensation":{
+			"Gross Salary":1,
+			"Matching Pension Contribution":1,
+			"941 Deposit - employer matching":1,
+			"Profit Sharing / Bonus":1,
+			"Uniform Allowance (if paid in cash)":1,
+			"Medical Insurance":1,
+			"Workers Comp - all":1
+    },
+    "Occupancy":{
+          "Bldg port Pract Loan/ Mortg/ Rent / Parking":1,
+          "Utilities":1,
+          "Janitorial":1,
+          "Repairs, Maint, Leasehold Improv":1,
+          "Facility Insurance":1,
+          "Security System":1,
+          "Property Taxes":1
+    },
+    "Human & Physical Resource Development":{
+          "Office furnishings & repairs":1,
+          "Dental equip loans / purch, repair, main":1,
+          "Staff Other CE expenses":1,
+          "Staff SCPD tuition/travel/lodging/meals":1
+    },
+	"Supplies/Raw Mat":{
+          "Shared supplies":1,
+          "Doctor supplies - hazard waste":1,
+          "Orthodontic supplies":1,
+          "Hygiene supplies":1,
+          "Hygiene products":1
+	},
+	"Marketing/Advertising":{
+          "Advertising":1,
+          "Marketing":1,
+          "Website":1
+	},
+	"Laboratory":{
+          "Restorative Lab":1,
+          "Ortho Lab":1,
+          "Implant Supplies":1,
+          "Cerec":1
+	},
+	"Administrative Services":{
+          "Administrative Office Supplies":1,
+          "Bank&CC Service Charges":1,
+          "Business Equipment Purchase":1,
+          "Business Equipment Repair / Main":1,
+          "Collection Costs":1,
+          "Dues(computer exp)":1,
+          "Laundry / Towel Services":1,
+          "Prof fees/ Legal / Acct":1,
+          "Licenses":1,
+          "Malpractice Insurance":1,
+          "Other (Identify)  consulting":1,
+          "Overhead Insurance":1,
+          "Cell Phone":1,
+          "Payroll Service Fees":1,
+          "Postage and Freight":1,
+          "Subscriptions":1,
+          "Taxes (personal prop & other bus taxes)":1,
+          "Telephone":1
+	},
+	"Doctor Salary":{
+          "Gross Salary / Draw / Taxes on Draw":1,
+          "Matching 941 Dep":1,
+          "Personal expenses paid from the Office":1,
+          "Insurance Premiums":1,
+          "Other":1
+	},
+	"Solvency/Savings":{
+        "Deposits made":1,
+        "Pymts on pre-mgmt year short term debt":1,
+        "Transferred out of Solvency Acct (for current month expenses)":1
+	},
+	"ROI funds":{
+          "Dr pension":1,
+          "Other CE":1,
+          "Long term investments":1,
+          "Goodwill Practice Loan Pmt":1,
+          "SCPD expenses (tuition, travel, lodg, meals)":1
+	},
+	"Other Short Term Debt": 1       
+}	
+	
+
+
+    
