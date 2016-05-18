@@ -8,7 +8,8 @@ var Schema       = mongoose.Schema;
 var AccountSchema   = new Schema({
 	"accountName": { type: String, required: true, unique: true},
 	"users": [{
-		type: Schema.Types.ObjectId, ref: 'User', index: false
+		"role": { type: String, required: true },
+		"_id": { type: Schema.Types.ObjectId, ref: 'User', unique: true, index: false}
 	}],
 	"entry_date": { type: Date, required: true, index: true}
 }, { strict: false });

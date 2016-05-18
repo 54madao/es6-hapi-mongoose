@@ -7,7 +7,11 @@ var bcrypt 		 = require('bcrypt-nodejs');
 // monthly sum schema 
 var UserSchema   = new Schema({
 	"email": { type: String, required: true, index: true, unique: true },
-	"password": { type: String, required: true, select: true }
+	"password": { type: String, required: true, select: true },
+	"accounts": [{
+		"role": { type: String, required: true },
+		"_id": {type: Schema.Types.ObjectId, unique: true, index: false, ref: 'Account'}
+	}]
 }, { strict: false });
 
 // var returnSchema = function (database){

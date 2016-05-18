@@ -25,6 +25,16 @@ exports.endpoints = [
   	config: user.login
   },
   {
+    method: 'POST',
+    path: '/user/forgetPassword',
+    config: user.forgetPassword
+  },
+  {
+    method: 'POST',
+    path: '/user/resetPassword',
+    config: user.resetPassword
+  },
+  {
   	method: 'GET',
   	path: '/account',
   	config: account.getAll

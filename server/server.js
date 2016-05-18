@@ -6,7 +6,6 @@ const routes = require('./app/routes');
 // const config = require('./config');
 const db = require('./app/database');
 const User = require('./app/models/User').returnSchema;
-// const Boom = require('boom');
 
 // const mongojs = require('hapi-mongojs');
 
@@ -52,17 +51,23 @@ var validate = function (decoded, request, callback) {
     }
 
     return callback(error, true, credentials)
-    // return callback(error, true, {});
 };
-
-// server.start(function() {
-//     console.log('Server started ', server.info.uri);
-// });
 
 server.register([{
     register: require('good'),
     options: options
-},{register: require('hapi-auth-jwt2')}], (err) => {
+},
+{
+    register: require('hapi-auth-jwt2')
+},
+{
+    register: require('hapi-authorization'),
+    options: {
+        roles: ['ADMIN', 'MEMBER', 'VISITOR']
+    }
+}
+
+], (err) => {
 
     server.auth.strategy('token', 'jwt', {
         key: config.JWT_SECRET,
@@ -80,8 +85,6 @@ server.register([{
         }
     }]);
 
-    // server.route();
-
     server.route(routes.endpoints);
 
     if (err) {
@@ -93,33 +96,3 @@ server.register([{
         });
     }
 });
-// server.route({
-//     method: 'GET',
-//     path: '/budget',
-//     handler: function (request, reply) {
-        
-//         // GET DB CONNECTION
-//         const myCollection = mongojs.db().collection('budgetData');
-
-//         // EXECUTE QUERY
-//         myCollection.find((error, value) => {
-//           if (error) {
-//             return reply(Boom.badData('Internal MongoDB error', error));
-//           }
-//           reply(value);
-//         });
-//     }
-// });
-
-// server.register(plugins, (err) => {
-//   if (err) {
-//     throw err;
-//   }
-
-//   server.start((err) => {
-//     if (err) {
-//       throw err;
-//     }
-//     server.log('info', `Server running at: ${server.info.uri}`);
-//   });
-// });

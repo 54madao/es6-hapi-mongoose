@@ -5,7 +5,7 @@ var Joi = require('joi'),
     config = require('dotenv').config();
 
 var cookie_options = {
-  ttl: 365 * 24 * 60 * 60 * 1000, // expires a year from today 
+  ttl: 1 * 60 * 60 * 1000, // expires a year from today 
   encoding: 'none',    // we already used JWT to encode 
   isSecure: true,      // warm & fuzzy feelings 
   isHttpOnly: true,    // prevent client alteration 
@@ -13,6 +13,7 @@ var cookie_options = {
   strictHeader: true   // don't allow violations of RFC 6265 
 }
 
+//todo check role
 exports.getAll = {
 
     auth: 'token',
@@ -43,7 +44,8 @@ exports.create = {
                 reply(user).created('/user/' + user._id);
             } else {
                 if (11000 === err.code || 11001 === err.code) {
-                    reply(Boom.forbidden("please provide another user id, it already exist"));
+                    // reply(Boom.forbidden("please provide another user id, it already exist"));
+                    reply(Boom.forbidden(err));
                 } else reply(Boom.forbidden(err)); // HTTP 403
             }
         });
@@ -101,6 +103,109 @@ exports.login = {
                         }).header("Authorization", token)        // where token is the JWT 
                         .state("token", token, cookie_options) // set the cookie with options ;
                     }
+                }
+            } else {
+                reply(Boom.badImplementation(err)); // 500 error
+            }
+        });
+    }
+};
+
+exports.resetPassword = {
+    auth: 'token',
+    validate: {
+        payload: {
+            password: Joi.string().required()
+        }
+    },
+    handler: function(request, reply) {
+        console.log(request.auth.credentials);        
+        User.findOne({
+            'email': request.auth.credentials.email
+        }, function(err, user) {
+            if (!err) {
+                // if no user found
+                if (!user) {
+                    reply({
+                        success: false,
+                        message: 'Authentication failed. User not found.'
+                    });
+                } else if (user) {
+                    user.password = request.payload.password;
+                    user.save(function(err, user) {
+                        if (!err) {
+                            // reply('created').code(201); // HTTP 201
+                            // reply.json(user);
+
+                            // // if user is found and password is correct
+                            // // create a token
+                            var token = jwt.sign({
+                                email: user.email,
+                                id: user._id
+                            }, 
+                            config.JWT_SECRET, 
+                            { 
+                                algorithm: 'HS256',
+                                expiresIn: 3000
+                            });
+
+                            reply(user)
+                            .created('/user/' + user._id)
+                            .header("Authorization", token)        // where token is the JWT 
+                            .state("token", token, cookie_options);
+
+                        } else {
+                            if (11000 === err.code || 11001 === err.code) {
+                                reply(Boom.forbidden("please provide another user id, it already exist"));
+                            } else reply(Boom.forbidden(err)); // HTTP 403
+                        }
+                    });
+                }
+            } else {
+                reply(Boom.badImplementation(err)); // 500 error
+            }
+        });
+    }
+};
+
+exports.forgetPassword = {
+    validate: {
+        payload: {
+            email: Joi.string().email().lowercase().required()
+        }
+    },
+    handler: function(request, reply) {        
+        User.findOne({
+            'email': request.payload.email
+        }, function(err, user) {
+            if (!err) {
+                // if no user found
+                if (!user) {
+                    reply({
+                        success: false,
+                        message: 'Authentication failed. User not found.'
+                    });
+                } else if (user) {
+
+                    // reply('created').code(201); // HTTP 201
+                    // reply.json(user);
+
+                    // // if user is found and password is correct
+                    // // create a token
+                    var token = jwt.sign({
+                        email: user.email,
+                        id: user._id
+                    }, 
+                    config.JWT_SECRET, 
+                    { 
+                        algorithm: 'HS256',
+                        expiresIn: 3000
+                    });
+
+                    reply(user)
+                    .header("Authorization", token)        // where token is the JWT 
+                    .state("token", token, cookie_options);
+
                 }
             } else {
                 reply(Boom.badImplementation(err)); // 500 error

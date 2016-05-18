@@ -1,10 +1,15 @@
-#set token to response header
 
-#add account to user.accounts
 
-#reset password
+#role based authorization
+#assign role
 
-#unlink
+#forget password sending email 
 
 #link a set of users
 
+#set token to response header
+#check token expire
+
+#logout
+
+#index duplicate key
