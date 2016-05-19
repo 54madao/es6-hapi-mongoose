@@ -2,7 +2,7 @@
 
 const Hapi = require('hapi');
 const config = require('dotenv').config();
-const routes = require('./app/routes');
+// const routes = require('./app/routes');
 // const config = require('./config');
 const db = require('./app/database');
 const User = require('./app/models/User').returnSchema;
@@ -41,17 +41,7 @@ const options = {
     }
 };
 
-var validate = function (decoded, request, callback) {
 
-    var error,
-    credentials = {id: decoded.id, email: decoded.email} || {};
-
-    if (!credentials) {
-        return callback(error, false, credentials);
-    }
-
-    return callback(error, true, credentials)
-};
 
 server.register([{
     register: require('good'),
@@ -65,15 +55,14 @@ server.register([{
     options: {
         roles: ['ADMIN', 'MEMBER', 'VISITOR']
     }
+},
+{
+    register: require('./app/routes')
 }
 
 ], (err) => {
 
-    server.auth.strategy('token', 'jwt', {
-        key: config.JWT_SECRET,
-        validateFunc: validate,
-        verifyOptions: { algorithms: [ 'HS256' ] }  // only allow HS256 algorithm
-    });
+    
 
     server.route([{
         method: 'GET',
@@ -85,7 +74,7 @@ server.register([{
         }
     }]);
 
-    server.route(routes.endpoints);
+    // server.route(routes.endpoints);
 
     if (err) {
         console.error(err);

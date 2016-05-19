@@ -80,6 +80,23 @@ exports.create = {
     }
 };
 
+exports.getUsers = {
+    auth: 'token',
+    handler: function(request, reply){
+        Account.findById(request.params.id)
+                .populate('users._id')
+                .exec(function(err, account){
+                    if(!err){
+                        reply(account.users);
+                    }
+                    else{
+                        reply(Boom.badImplementation(err));
+                    }
+                });
+    }
+};
+
+
 exports.linkUser = {
 	auth: 'token',
 	validate: {
@@ -164,4 +181,5 @@ exports.linkUser = {
             }
         });
 	}
-}
+};
+

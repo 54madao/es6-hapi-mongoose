@@ -52,6 +52,26 @@ exports.create = {
     }
 };
 
+exports.getAccounts = {
+    auth: 'token',
+    handler: function(request, reply) {
+        User.findOne({email: request.auth.credentials.email})
+            .populate('accounts._id')
+            .exec(function (err, user) {
+                // if (err) return handleError(err);
+                // console.log('The creator is %s', story.accounts);
+                // // prints "The creator is Aaron"
+                if(!err){
+                    reply(user.accounts);
+                }
+                else{
+                    reply(Boom.badImplementation(err));
+                }
+            });
+    }
+}
+
+
 exports.login = {
     validate: {
         payload: {
@@ -92,11 +112,6 @@ exports.login = {
                             expiresIn: 3000
                         });
 
-                        // res.json({
-                        //     success: true,
-                        //     message: 'Enjoy your token!',
-                        //     token: token
-                        // });
                         reply({
                             success: true,
                             message: 'Enjoy your token!'
