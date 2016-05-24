@@ -1,0 +1,62 @@
+server {
+    listen 80;
+    server_name int.polykii.com www.int.polykii.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+
+    server_name int.polykii.com www.int.polykii.com;
+
+    add_header Strict-Transport-Security "max-age=31536000";
+
+    ssl_certificate /home/dev/meandashboard/server/conf/Certs/nginx.crt;
+    ssl_certificate_key /home/dev/meandashboard/server/conf/Certs/nginx.key;
+
+    sendfile off;
+
+
+    root /home/dev/meandashboard/client/dist;
+
+    index index.html index.php;  ## Set the index for site to use ##
+
+    charset utf-8; ## Set the charset ##
+
+    access_log /var/log/nginx/star.meandashboard.com-access.log;
+    error_log  /var/log/nginx/star.meandashboard.com-error.log error;
+
+    location = /favicon.ico { log_not_found off; access_log off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    location /api/v1 {
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-NginX-Proxy true;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_max_temp_file_size 0;
+        proxy_pass http://localhost:8080;
+        proxy_redirect off;
+        proxy_read_timeout 240s;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+#
+#    location *.php {
+#        root /vagrant/server/cashvue/public;
+#        try_files /index.php =404;
+#
+#        include fastcgi_params;
+#        fastcgi_param SCRIPT_FILENAME $request_filename;
+#        fastcgi_param APP_ENV local; # Environment variable for Laravel
+#        fastcgi_pass unix:/var/run/php5-fpm.sock;
+#    }
+
+    ## Don't allow access to .ht files ##
+    location ~ /\.ht {
+            deny all;
+    }
+
+}
