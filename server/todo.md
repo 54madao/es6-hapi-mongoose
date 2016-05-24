@@ -1,10 +1,10 @@
 
 
 #role based authorization
-#assign role
 
 #forget password sending email 
 
+#consider add link collection
 #link a set of users
 
 #set token to response header
@@ -13,4 +13,10 @@
 #logout
 
 #index duplicate key
+
+#switch db
+
+#sync acount user link
+
+#two phase commits
 

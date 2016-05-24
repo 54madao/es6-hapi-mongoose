@@ -13,8 +13,12 @@ var endpoints = {
         { method: 'POST', path: '/user/resetPassword', config: user.resetPassword },
         { method: 'GET', path: '/account', config: account.getAll },
         { method: 'POST', path: '/account', config: account.create },
-        { method: 'GET', path: '/account/{id}/users', config: account.getUsers },
-        { method: 'POST', path: '/account/{id}/linking', config: account.linkUser }]
+        { method: 'GET', path: '/account/{id}/getUsers', config: account.getUsers }, //get users from account.users
+        { method: 'GET', path: '/account/{id}/users', config: account.getAllUsers }, // get users from link
+        { method: 'POST', path: '/account/{id}/linkUser', config: account.linkUser }, // add/remove user to/from account.users & add/rm account to/from user.accounts
+        { method: 'POST', path: '/account/{id}/linking', config: account.linking }, // add/remove link to/from link
+        { method: 'POST', path: '/account/{id}/assgin', config: account.assignRole },
+        { method: 'POST', path: '/account/{id}/role', config: account.role }]
 };
 
 exports.register = function(server, option, next) {

@@ -1,8 +1,10 @@
 var Joi = require('joi'),
     Boom = require('boom'),
     User = require('../models/User').model,
+    Account = require('../models/Account').model,
     jwt = require('jsonwebtoken'), // JsonWebToken implementation for node.js
     config = require('dotenv').config();
+
 
 var cookie_options = {
   ttl: 1 * 60 * 60 * 1000, // expires a year from today 
