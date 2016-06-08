@@ -1,59 +1,30 @@
-var budget = require('./Controllers/BudgetDataController');
-// var monthDataController = require('./Controllers/monthDataController');
-var user = require('./Controllers/UserController');
-var account = require('./Controllers/AccountController');
 
-var endpoints = {
-  api: [{ method: 'GET', path: '/budgetData', config:  budget.getAll },
-        { method: 'POST', path: '/user', config: user.create },
-        { method: 'GET', path: '/user', config: user.getAll },
-        { method: 'GET', path: '/user/accounts', config: user.getAccounts },
-        { method: 'POST', path: '/login', config: user.login },
-        { method: 'POST', path: '/user/forgetPassword', config: user.forgetPassword },
-        { method: 'POST', path: '/user/resetPassword', config: user.resetPassword },
-        { method: 'GET', path: '/account', config: account.getAll },
-        { method: 'POST', path: '/account', config: account.create },
-        { method: 'GET', path: '/account/{id}/getUsers', config: account.getUsers }, //get users from account.users
-        { method: 'GET', path: '/account/{id}/users', config: account.getAllUsers }, // get users from link
-        { method: 'POST', path: '/account/{id}/linkUser', config: account.linkUser }, // add/remove user to/from account.users & add/rm account to/from user.accounts
-        { method: 'POST', path: '/account/{id}/linking', config: account.linking }, // add/remove link to/from link
-        { method: 'POST', path: '/account/{id}/assgin', config: account.assignRole },
-        { method: 'POST', path: '/account/{id}/role', config: account.role }]
-};
+'use strict'
 
-exports.register = function(server, option, next) {
+import UserController from './Controllers/UserController'
+import AccountController from './Controllers/AccountController'
+import BudgetController from './Controllers/BudgetController'
+import MonthlyDataController from './Controllers/MonthlyDataController'
+import MonthlySumController from './Controllers/MonthlySumController'
 
-  //auth
-  const validate = function (decoded, request, callback) {
-    var error,
-    credentials = {id: decoded.id, email: decoded.email} || {};
+let api = "/api/v1"
 
-    if (!credentials) {
-        return callback(error, false, credentials);
-    }
+let endpoints = [
+        { method: 'GET', path: api + '/user', config: UserController.index},
+        { method: 'POST', path: api + '/user', config: UserController.create },
+        { method: 'PUT', path: api + '/user/{id}', config: UserController.update },
+        { method: 'GET', path: api + '/user/{id}/accounts', config: UserController.getAccounts },
+        { method: 'POST', path: api + '/login', config: UserController.login },
+        { method: 'GET', path: api + '/logout', config: UserController.logout },
+        { method: 'POST', path: api + '/user/forgetPassword', config: UserController.forgetPassword },
+        { method: 'PUT', path: api + '/user/resetPassword', config: UserController.resetPassword },
+        { method: 'GET', path: api + '/account', config: AccountController.index },
+        { method: 'POST', path: api + '/account', config: AccountController.create },
+        { method: 'PUT', path: api + '/account/{id}', config: AccountController.update },
+        { method: 'GET', path: api + '/account/{id}', config: AccountController.switchAccount },
+        { method: 'GET', path: api + '/account/{id}/users', config: AccountController.getUsers }, // get users from link
+        { method: 'POST', path: api + '/account/{id}/user', config: AccountController.linkUser }, // add/remove link to/from link
+        { method: 'POST', path: api + '/account/{id}/role', config: AccountController.setRole }
+];
 
-    return callback(error, true, credentials)
-  };
-  server.auth.strategy('token', 'jwt', {
-      key: config.JWT_SECRET,
-      validateFunc: validate,
-      verifyOptions: { algorithms: [ 'HS256' ] }  // only allow HS256 algorithm
-  });
-
-  // route group
-  const group = function(prefix, routes){
-    routes.forEach(function(route){
-      route.path = prefix + route.path;
-    });
-    server.route(routes);
-  }
-  server.decorate('server', 'group', group);
-
-
-  server.group("/api/v1", endpoints.api);
-  next();
-}
-
-exports.register.attributes = {
-    name: 'routes'
-};
+export default endpoints;

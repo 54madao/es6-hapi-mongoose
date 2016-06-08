@@ -1,11 +1,10 @@
-'use strict';
+'use strict'
 
-var mongoose     = require('mongoose');
-var Schema       = mongoose.Schema;
-// var bcrypt 		 = require('bcrypt-nodejs');
+import mongoose from 'mongoose'
 
-// monthly sum schema 
-var AccountSchema   = new Schema({
+let Schema = mongoose.Schema
+
+let AccountSchema   = new Schema({
 	"accountName": { type: String, required: true, unique: true},
 	"users": [{
 		"role": { type: String, required: true },
@@ -14,13 +13,12 @@ var AccountSchema   = new Schema({
 	"entry_date": { type: Date, required: true, index: true}
 }, { strict: false });
 
-// var returnSchema = function (database){
-// 	if(database){
-// 		return database.model('BudgetData', BudgetDataSchema);
+// let getModel = (db) => {
+// 	if(db){
+// 		return db.model('Account', AccountSchema);
 // 	}
-//     return mongoose.model('BudgetData', BudgetDataSchema);
-// };
-
-// module.exports = returnSchema;
-
-exports.model = mongoose.model('Account', AccountSchema);
+// 	else{
+// 		return mongoose.model('Account', AccountSchema)
+// 	}
+// }
+export default mongoose.model('Account', AccountSchema)

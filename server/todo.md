@@ -1,22 +1,30 @@
+#switch account
+
+////////////checkin////////////
+#server.inject()
 
 
-#role based authorization
+#log to file, log rotation
 
 #forget password sending email 
+#invite user
+////////////checkin////////////
 
-#consider add link collection
-#link a set of users
+#fix api todo
 
-#set token to response header
-#check token expire
+////////////checkin////////////
 
-#logout
+use embedded document for later sycn
+#sync acount user link
+#two phase commits
+
+#connections still exisit in mongoose.connections after being closed
 
 #index duplicate key
 
-#switch db
+////////////checkin////////////
 
-#sync acount user link
+simplify controller
 
-#two phase commits
+auth check
 

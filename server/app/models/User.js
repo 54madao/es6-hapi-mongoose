@@ -1,11 +1,11 @@
-'use strict';
+'use strict'
 
-var mongoose     = require('mongoose');
-var Schema       = mongoose.Schema;
-var bcrypt 		 = require('bcrypt-nodejs');
+import bcrypt from 'bcrypt'
+import mongoose from 'mongoose'
 
-// monthly sum schema 
-var UserSchema   = new Schema({
+let Schema = mongoose.Schema
+
+let UserSchema   = new Schema({
 	"email": { type: String, required: true, index: true, unique: true },
 	"password": { type: String, required: true, select: true },
 	"accounts": [{
@@ -14,33 +14,25 @@ var UserSchema   = new Schema({
 	}]
 }, { strict: false });
 
-// var returnSchema = function (database){
-// 	if(database){
-// 		return database.model('User', UserSchema);
+UserSchema.statics.comparePassword = (password, userPassword) => bcrypt.compareSync(password, userPassword);
+
+// UserSchema.statics.hashPassword = (password, saltRounds, callback) => {
+// 	bcrypt.hash(user.password, saltRounds, (err, hash) {
+// 		if(err){
+// 			callback(err, null);
+// 		}
+// 		else{
+// 			callback(null, hash);
+// 		}
 // 	}
-//     return mongoose.model('User', UserSchema);
-// };
+// }
 
-UserSchema.pre('save', function(next) {
-	var user = this;
-	// hash the password
-	if (!user.isModified('password')) return next();
-
-	// generate the hash
-	bcrypt.hash(user.password, null, null, function(err, hash) {
-		if (err) return next(err);
-
-		// change password to hashed version
-		user.password = hash;
-		next();
-	});
-});
-
-
-UserSchema.methods.comparePassword = function(password) {
-	var user = this;
-	return bcrypt.compareSync(password, user.password);
-};
-
-// module.exports = returnSchema;
-exports.model = mongoose.model('User', UserSchema);
+// let getModel = (db) => {
+// 	if(db){
+// 		return db.model('User', UserSchema);
+// 	}
+// 	else{
+// 		return mongoose.model('User', UserSchema)
+// 	}
+// }
+export default mongoose.model('User', UserSchema)

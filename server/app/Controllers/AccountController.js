@@ -1,492 +1,459 @@
-var Joi = require('joi'),
-    Boom = require('boom'),
-    User = require('../models/User').model,
-    Account = require('../models/Account').model,
-    Link = require('../models/Link').model
-    jwt = require('jsonwebtoken'), // JsonWebToken implementation for node.js
-    config = require('dotenv').config();
-var Async = require('async');
+'use strict'
 
-var cookie_options = {
-  ttl: 1 * 60 * 60 * 1000, // expires a year from today 
-  encoding: 'none',    // we already used JWT to encode 
-  isSecure: true,      // warm & fuzzy feelings 
-  isHttpOnly: true,    // prevent client alteration 
-  clearInvalid: false, // remove invalid cookies 
-  strictHeader: true   // don't allow violations of RFC 6265 
-}
+// import { BaseController } from './BaseController'
+import User from '../Models/User'
+import Account from '../Models/Account'
+import Link from '../Models/Link'
+import Token from '../token'
+import Async from 'async'
+import Joi from 'joi'
+import Boom from 'boom'
+import bcrypt from 'bcrypt'
+// import conn from '../database'
+// import mongoose from 'mongoose'
+let saltRounds = 10;
+
+let AccountController = {}
 
 //todo check role
-exports.getAll = {
+AccountController.index = {
 
     auth: 'token',
-    handler: function(request, reply) {
-        Account.find({}, function(err, accounts) {
+    plugins: {'hapiAuthorization': {role: 'SUPER_ADMIN'}},
+    handler: (request, reply) => {
+
+        let token = Token.refresh(request.auth.credentials);
+
+        Account.find({}, (err, accounts) => {
             if (!err) {
-                reply(accounts);
+                reply({
+                    success: true,
+                    msg: accounts
+                }).header("Authorization", token)        // where token is the JWT 
+                .state("token", token, Token.cookie_options) // set the cookie with options;
             } else {
-                reply(Boom.badImplementation(err)); // 500 error
+                reply(Boom.badImplementation({
+                    success: false,
+                    msg:err
+                })).header("Authorization", token)        // where token is the JWT 
+                .state("token", token, Token.cookie_options) // set the cookie with options; // 500 error
             }
         });
     }
 };
 
-exports.create = {
-	auth: 'token',
+AccountController.create = {
     validate: {
         payload: {
-            accountName: Joi.string().required()
+            accountName: Joi.string().required(),
+            email: Joi.string().email().lowercase().required(),
+            password: Joi.string()
         }
     },
-    handler: function(request, reply) {
-    	// console.log(request.auth.credentials);
-        var account = new Account({
-        	accountName: request.payload.accountName,
-        	users:[{
-                role: "ADMIN",
-                _id: request.auth.credentials.id
-            }],
-        	entry_date : new Date()
-        });
-        // console.log(account);
-        account.save(function(err, account) {
-            if (!err) {
-                var userId = request.auth.credentials.id;
-                var item = {
-                    role: "ADMIN",
-                    _id: account._id
-                };
-                var update = {$push: {"accounts": item}};
-                var options = {new: true};
-                User.findByIdAndUpdate(
-                    userId,
-                    update,
-                    options,
-                    function(err, user) {
-                         if (!err) {
-                            reply({account: account, user: user}).created('/account/' + account._id);
-                         } else {
-                             if (11000 === err.code || 11001 === err.code) {
-                                 callback(Boom.forbidden("please provide another account id, it already exist"),null);
-                             } else callback(Boom.forbidden(err),null); // HTTP 403
-                         }
-                     }
-                );          
-            } else {
-                if (11000 === err.code || 11001 === err.code) {
-                    reply(Boom.forbidden(err));
-                } else reply(Boom.forbidden(err)); // HTTP 403
-            }
-        });
-    }
-};
+    handler: (request, reply) => {
 
-exports.getUsers = {
-    auth: 'token',
-    handler: function(request, reply){
-        Account.findById(request.params.id)
-                .populate('users._id')
-                .exec(function(err, account){
-                    if(!err){
-                        reply(account.users);
-                    }
-                    else{
-                        reply(Boom.badImplementation(err));
-                    }
-                });
-    }
-};
-
-
-exports.linkUser = {
-	auth: 'token',
-	validate: {
-		payload: {
-            email: Joi.string().email().lowercase().required(),
-            link: Joi.boolean().required()
-        }
-	},
-	handler: function(request, reply){ 
         Async.auto({
-            findUser: function(callback){
+            findUser: (callback) => {
                 User.findOne({
-                    'email': request.payload.email
-                }, function(err, user) {
+                    email: request.payload.email
+                },(err, user) =>{
                     if(!err){
                         if(!user){
-                            callback({
-                                success: false,
-                                message: 'Linking failed. User not found.'
-                            },null);
-                            return;
+                            return callback(null, null);
+                            
                         }
                         else{
-                            callback(null, user);
-                            return;
+                            return callback(null, user);
                         }
                     }
                     else{
-                        callback(Boom.badImplementation(err),null);
-                        return;
+                        return callback(Boom.badImplementation(err),null);
                     }
                 })
             },
-            linking: ['findUser', function(results, callback){
-                // console.log(JSON.stringify(results));
-                var user = results.findUser;
-                var accountId = encodeURIComponent(request.params.id);
-                var item = {
-                    role: "READONLY",
-                    _id: user._id
-                };
-                var update = request.payload.link?{$push: {"users": item}}:{$pull: {"users": item}};
-                var options = {new: true};
+            createUser: ['findUser', (results, callback) => {
+                if(results.findUser){
+                    return callback(null, results.findUser);
+                }
+                else{
+                    if(request.payload.password){
+                        
+                        let user = new User({
+                            email: request.payload.email,
+                            password: request.payload.password
+                        });
 
 
-                Account.findByIdAndUpdate(
-                    accountId,
-                    update,
-                    options,
-                    function(err, account) {
-                         if (!err) {
-                            var item = {
-                                role: "READONLY",
-                                _id: account._id
+                        bcrypt.hash(user.password, saltRounds, (err, hash) => {        
+                            if(err){
+                                return callback(Boom.badImplementation({
+                                    success: false,
+                                    msg: err
+                                }), null)
                             }
-                             request.payload.link?user.accounts.push(item):user.accounts.pull(item);
-                             user.save(function(err, user){
-                                if(!err){
-                                    callback(null,{account: account, user: user});
-                                }
-                                else{
-                                    callback(Boom.badImplementation(err),null);
-                                }
-                             });
-                         } else {
-                             if (11000 === err.code || 11001 === err.code) {
-                                 callback(Boom.forbidden("please provide another account id, it already exist"),null);
-                             } else callback(Boom.forbidden(err),null); // HTTP 403
-                         }
-                     }
-                );          
-            }]
-        }, function(err, results) {
-            // console.log('err = ', err);
-            // console.log('results = ', results);
-
-            if(err){
-                reply(err);
-            }
-            else{
-                reply(results.linking).created('/account/' + request.params.id);
-            }
-        });
-	}
-};
-
-exports.assignRole = {
-    auth: 'token',
-    validate: {
-        payload: {
-            email: Joi.string().email().lowercase().required(),
-            role: Joi.string().required() 
-        }
-    },
-    handler: function(request, reply) {
-        Async.auto({
-            auth: function(callback){
-                Account.findOne({
-                    $and: [{
-                        '_id': request.params.id
-                    },
-                    {
-                        'users._id': request.auth.credentials.id
-                    }]
-                },'users.$',function(err, account){
-                    if(!err){
-                        if(account.users[0].role == "ADMIN"){
-                            callback(null, null);
-                        }
-                        else{
-                            callback("Not ADMIN", null);
-                        }
+                            else{
+                                user.password = hash;
+                                user.save((err, user) => {
+                                    if (!err) {
+                                        return callback(null, user)
+                                    }
+                                    else {
+                                        return callback(Boom.badImplementation({
+                                            success: false,
+                                            msg: err
+                                        }), null)
+                                    }
+                                     
+                                });
+                            }
+                        });
                     }
                     else{
-                        callback(Boom.badImplementation(err), null);
+                        return callback(Boom.badRequest({
+                            success: false,
+                            msg: "Please provide a password"
+                        }), null)
                     }
+                }
+            }],
+            saveAccount: (callback) => {
+
+                let account = new Account({
+                    accountName: request.payload.accountName,
+                    entry_date : new Date()
                 });
-            },
-            findUser: function(callback){
-                User.findOne({
-                    'email': request.payload.email
-                }, function(err, user) {
+
+
+                account.save((err, account) => {
                     if(!err){
-                        if(!user){
-                            callback({
-                                success: false,
-                                message: 'Assign failed. User not found.'
-                            },null);
-                            return;
-                        }
-                        else{
-                            callback(null, user);
-                            return;
-                        }
+                        return callback(null, account);
+                    }
+                    else if (11000 === err.code || 11001 === err.code) {
+                        return callback(Boom.forbidden({
+                            success: false,
+                            msg: "please provide another account name, it already exist"
+                        }), null)
                     }
                     else{
-                        callback(Boom.badImplementation(err),null);
-                        return;
+                        return callback(Boom.badImplementation({
+                            success: false,
+                            msg: err
+                        }), null)
                     }
                 })
             },
-            assign: ['findUser', function(results, callback){
-                var user = results.findUser;
+            linking: ['createUser', 'saveAccount', (results, callback) => {
+                let link = new Link({
+                    user: results.createUser._id,
+                    account: results.saveAccount._id,
+                    role: 'ADMIN'
+                });
 
-                var conditions = {
-                    $and: [{
-                        '_id': request.params.id
-                    },
-                    {
-                        'users._id': user._id
-                    }]
-                };
-                var update = {$set: {"users.$.role": request.payload.role}};
-                var options = {new: true};
-
-                Account.findOneAndUpdate(
-                    conditions,
-                    update,
-                    options,
-                    function(err, account) {
-                         if (!err) {
-                            // var item = {
-                            //     role: "READONLY",
-                            //     _id: account._id
-                            // }
-                            //  request.payload.link?user.accounts.push(item):user.accounts.pull(item);
-                            //  user.save(function(err, user){
-                            //     if(!err){
-                            //         callback(null,{account: account, user: user});
-                            //     }
-                            //     else{
-                            //         callback(Boom.badImplementation(err),null);
-                            //     }
-                            //  });
-                             var conditions = {
-                                $and: [{
-                                    '_id': user._id
-                                },
-                                {
-                                    'accounts._id': request.params.id
-                                }]
-                            };
-                            var update = {$set: {"accounts.$.role": request.payload.role}};
-                            var options = {new: true};
-                            User.findOneAndUpdate(
-                                conditions,
-                                update,
-                                options,
-                                function(err, user) {
-                                    if(!err){
-                                        callback(null,{account: account, user: user});
-                                    }
-                                    else{
-                                        callback(Boom.badImplementation(err),null);
-                                    }
-                                }
-                            );
-                         } else {
-                             if (11000 === err.code || 11001 === err.code) {
-                                 callback(Boom.forbidden("please provide another account id, it already exist"),null);
-                             } else callback(Boom.forbidden(err),null); // HTTP 403
-                         }
-                     }
-                );          
+                link.save((err, link) => {
+                    if (!err) {
+                        return callback(null, link)
+                    } 
+                    else {
+                        return callback(Boom.badImplementation({
+                            success: false,
+                            msg: err
+                        }), null)
+                    }
+                });
             }]
-        }, function(err, results){
-            if(err){
-                reply(err);
+        },(err, results) => {
+            if(!err){
+                reply({
+                    success: true,
+                    msg: {
+                        user: results.createUser,
+                        account: results.saveAccount, 
+                        link: results.linking
+                    }
+                }).created('/account/' + results.saveAccount._id);
             }
             else{
-                // reply(results.linking).created('/account/' + request.params.id);
-                reply(results.assign)
+                reply(err);
             }
         });
     }
 };
 
-exports.linking = {
+AccountController.update = {
     auth: 'token',
+    plugins: {'hapiAuthorization': {roles: ['SUPER_ADMIN', 'ADMIN']}},
+    handler: (request, reply) => {
+        let token = Token.refresh(request.auth.credentials);
+
+        Account.findByIdAndUpdate(
+            request.params.id,
+            JSON.parse(request.payload),
+            {new: true},
+            (err, account) => {
+                if (!err) {
+                    reply({
+                        success: true,
+                        msg: account
+                    }).header("Authorization", token)        // where token is the JWT 
+                    .state("token", token, Token.cookie_options) // set the cookie with options;
+                }
+                else{
+                    reply({
+                        success: false,
+                        msg: err
+                    }).header("Authorization", token)        // where token is the JWT 
+                    .state("token", token, Token.cookie_options) // set the cookie with options;
+                }
+            }
+        )
+    }
+}
+
+AccountController.switchAccount = {
+    auth: 'token',
+    handler: (request, reply) => {
+        let token = Token.addToken(request.auth.credentials, {account: request.params.id})
+
+        reply().header("Authorization", token)        // where token is the JWT 
+        .state("token", token, Token.cookie_options) // set the cookie with options;
+    }
+}
+//todo: group each item togather
+AccountController.getUsers = {
+    auth: 'token',
+    plugins: {'hapiAuthorization': {roles: ['SUPER_ADMIN', 'ADMIN']}},
+    handler: (request, reply) => {
+        let token = Token.refresh(request.auth.credentials);
+        Link.find({account: request.params.id})
+        .populate('user')
+        .exec((err, link) => {
+            if(!err){
+                reply({
+                    success: true,
+                    msg: link
+                }).header("Authorization", token)        // where token is the JWT 
+                .state("token", token, Token.cookie_options) // set the cookie with options;
+            }
+            else{
+                reply(Boom.badImplementation({
+                    success: false,
+                    msg: err
+                })).header("Authorization", token)        // where token is the JWT 
+                .state("token", token, Token.cookie_options) // set the cookie with options;
+            }
+        });
+    }
+}
+
+AccountController.linkUser = {
+    auth: 'token',
+    plugins: {'hapiAuthorization': {roles: ['SUPER_ADMIN', 'ADMIN']}},
     validate: {
         payload: {
-            email: Joi.string().email().lowercase().required(),
+            emails: Joi.array().items(Joi.string().email().lowercase()).single().required(),
+            // email: Joi.string().email().lowercase().required(),
             link: Joi.boolean().required()
         }
     },
-    handler: function(request, reply){ 
-        Async.auto({
-            findUser: function(callback){
-                User.findOne({
-                    'email': request.payload.email
-                }, function(err, user) {
-                    if(!err){
-                        if(!user){
-                            callback({
-                                success: false,
-                                message: 'Linking failed. User not found.'
-                            },null);
-                            return;
+    handler: (request, reply) => {
+        let token = Token.refresh(request.auth.credentials);
+
+        let report = [];
+        Async.each(request.payload.emails, (email, callback) => {
+            Async.auto({
+                findUser: (callback) =>{
+                    User.findOne({
+                        'email': email
+                    }, (err, user) =>{
+                        if(!err){
+                            if(!user){
+                                return callback(Boom.forbidden(
+                                    'Linking failed. User not found.'
+                                ),null);
+                            }
+                            else{
+                                return callback(null, user);
+                            }
                         }
                         else{
-                            callback(null, user);
-                            return;
+                            return callback(Boom.badImplementation(err),null);
                         }
+                    })
+                },
+                linking: ['findUser', (results, callback) => {
+                    if(request.payload.link){
+                        let link = new Link({
+                            user: results.findUser._id,
+                            account: request.params.id,
+                            role: 'READONLY'
+                        });
+                        link.save((err, link) => {
+                            if (!err) {
+                                return callback(null, link);
+                            } 
+                            else if (11000 === err.code || 11001 === err.code) {
+                                return callback(Boom.forbidden(
+                                    "please provide another user email or use another account, link already exist"
+                                ), null);
+                            } else 
+                                return callback(Boom.forbidden(err), null); // HTTP 403
+                        });
                     }
                     else{
-                        callback(Boom.badImplementation(err),null);
-                        return;
+                        Link.findOne({
+                            $and: [
+                                {user: results.findUser._id},
+                                {account: request.params.id}
+                            ]
+                        }, (err, link) => {
+                            if(!err){
+                                link.remove();
+                                return callback(null, link);
+                            } else {
+                                return callback(Boom.badImplementation(err), null);
+                            }
+                        });
                     }
-                })
-            },
-            linking: ['findUser', function(results, callback){
-                if(request.payload.link){
-                    var link = new Link({
-                        user: results.findUser._id,
-                        account: request.params.id,
-                        role: 'READONLY'
-                    });
-                    link.save(function(err, link) {
-                        if (!err) {
-                            callback(null, link);
-                        } else {
-                            callback(Boom.badImplementation(err), null);
+                }]
+            }, (err, results) => {
+                // console.log('err = ', err);
+                // console.log('results = ', results);
+
+                if(err){
+                    report.push({
+                        success: false,
+                        msg: {
+                            error: err,
+                            email: email
                         }
                     });
                 }
                 else{
-                    Link.findOne({
-                        $and: [
-                            {user: results.findUser._id},
-                            {account: request.params.id}
-                        ]
-                    }, function(err, link){
-                        if(!err){
-                            link.remove();
-                            callback(null, link);
-                        } else {
-                            callback(Boom.badImplementation(err), null);
+                    report.push({
+                        success: true,
+                        msg: {
+                            link: results.linking,
+                            email: email
                         }
-                    });
+                    })
                 }
-            }]
-        }, function(err, results) {
-            // console.log('err = ', err);
-            // console.log('results = ', results);
-
-            if(err){
-                reply(err);
-            }
-            else{
-                reply(results.linking);
-            }
-        });
+                return callback();
+            });
+        }, (err) => {
+            reply(report).header("Authorization", token)        // where token is the JWT 
+            .state("token", token, Token.cookie_options) // set the cookie with options;
+        }); 
+        
     }
 }
 
-exports.getAllUsers = {
+AccountController.setRole = {
     auth: 'token',
-    handler: function(request, reply){
-        Link.find({account: request.params.id})
-        .populate('user')
-        .exec(function(err, link){
-            if(!err){
-                reply(link);
-            }
-            else{
-                reply(Boom.badImplementation(err));
-            }
-        });
-    }
-}
-
-exports.role = {
-    auth: 'token',
+    plugins: {'hapiAuthorization': {roles: ['SUPER_ADMIN', 'ADMIN']}},
     validate: {
         payload: {
             email: Joi.string().email().lowercase().required(),
             role: Joi.string().required() 
         }
     },
-    handler: function(request, reply) {
+    handler: (request, reply) => {
+        let token = Token.refresh(request.auth.credentials);
+
         Async.auto({
-            auth: function(callback){
-                Link.findOne({
-                    $and: [
-                        {user: request.auth.credentials.id},
-                        {account: request.params.id}
-                    ]
-                },function(err, link){
-                    console.log(link.role);
-                    if(!err){
-                        if(link.role == "ADMIN"){
-                            callback(null, link);
-                        }
-                        else{
-                            callback("Not ADMIN", null);
-                        }
-                    }else{
-                        reply(Boom.badImplementation(err));
-                    }
-                });
-            },
-            findUser: function(callback){
+            // auth: (callback) => {
+            //     Link.findOne({
+            //         $and: [
+            //             {user: request.auth.credentials.id},
+            //             {account: request.params.id}
+            //         ]
+            //     },(err, link) => {
+            //         if(!err){
+            //             if(link.role == "ADMIN"){
+            //                 return callback(null, link);
+            //             }
+            //             else{
+            //                 return callback(Boom.forbidden({
+            //                     success: false,
+            //                     msg: "Not ADMIN"
+            //                 }), null);
+            //             }
+            //         }else{
+            //             return callback(Boom.badImplementation({
+            //                 success: false,
+            //                 msg: err
+            //             }));
+            //         }
+            //     });
+            // },
+            findUser: (callback) => {
                 User.findOne({
                     'email': request.payload.email
-                }, function(err, user) {
+                }, (err, user) => {
                     if(!err){
                         if(!user){
-                            callback({
+                            return callback(Boom.forbidden({
                                 success: false,
-                                message: 'Linking failed. User not found.'
-                            },null);
+                                msg: 'Linking failed. User not found.'
+                            }),null);
                             return;
                         }
                         else{
-                            callback(null, user);
+                            return callback(null, user);
                             return;
                         }
                     }
                     else{
-                        callback(Boom.badImplementation(err),null);
+                        return callback(Boom.badImplementation({
+                            success: false,
+                            msg: err
+                        }),null);
                         return;
                     }
                 })
             },
-            assign: ['findUser', function(results, callback){
+            assign: ['findUser', (results, callback) => {
                  Link.findOne({
                     $and: [
                         {user: results.findUser._id},
                         {account: request.params.id}
                     ]
-                }, function(err, link){
+                }, (err, link) => {
                     if(!err){
                         link.role = request.payload.role;
-                        link.save();
+                        link.save((err, link) => {
+                            if (!err) {
+                                return callback(null, link);
+                            } else {
+                                return callback(Boom.forbidden({
+                                    success: false,
+                                    msg: err
+                                }), null);
+                            }
+                        });
                     }
                     else{
-                        callback(Boom.badImplementation(err), null);
+                        return callback(Boom.badImplementation({
+                            success: false,
+                            msg: err
+                        }), null);
                     }
-                }
+                })
             }]
-        }, function(err, results){
+        }, (err, results) => {
             if(err){
-                reply(err);
+                reply(err).header("Authorization", token)        // where token is the JWT 
+                .state("token", token, Token.cookie_options) // set the cookie with options;
             }
             else{
                 // reply(results.linking).created('/account/' + request.params.id);
-                reply(results.assign)
+                reply({
+                    success: true,
+                    msg: results.assign
+                }).header("Authorization", token)        // where token is the JWT 
+                .state("token", token, Token.cookie_options) // set the cookie with options
             }
         });
     }
-} 
+}
 
+export default AccountController;
