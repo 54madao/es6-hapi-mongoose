@@ -30,6 +30,8 @@
     "lout": "^9.0.0",
     "mongoose": "^4.4.19",
     "purdy": "^1.6.2",
+    "rotating-file-stream": "^1.0.5",
+    "sparkpost": "^1.3.5",
     "vision": "^4.1.0",
     "winston": "^2.2.0"
   },

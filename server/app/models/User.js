@@ -10,23 +10,19 @@ let UserSchema   = new Schema({
 	"password": { type: String, required: true, select: true },
 	"accounts": [{
 		"role": { type: String, required: true },
-		"_id": {type: Schema.Types.ObjectId, unique: true, index: false, ref: 'Account'}
+		"_id": {type: Schema.Types.ObjectId, ref: 'Account'}
 	}]
 }, { strict: false });
 
 UserSchema.statics.comparePassword = (password, userPassword) => bcrypt.compareSync(password, userPassword);
 
-// UserSchema.statics.hashPassword = (password, saltRounds, callback) => {
-// 	bcrypt.hash(user.password, saltRounds, (err, hash) {
-// 		if(err){
-// 			callback(err, null);
-// 		}
-// 		else{
-// 			callback(null, hash);
-// 		}
-// 	}
-// }
+UserSchema.index({ email: 1 }, {unique: true});
 
+let model = mongoose.model('User', UserSchema)
+
+model.on('index', (err) => {
+  if (err) console.error(err); // error occurred during index creation
+})
 // let getModel = (db) => {
 // 	if(db){
 // 		return db.model('User', UserSchema);
@@ -35,4 +31,4 @@ UserSchema.statics.comparePassword = (password, userPassword) => bcrypt.compareS
 // 		return mongoose.model('User', UserSchema)
 // 	}
 // }
-export default mongoose.model('User', UserSchema)
+export default model

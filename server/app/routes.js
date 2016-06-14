@@ -3,9 +3,6 @@
 
 import UserController from './Controllers/UserController'
 import AccountController from './Controllers/AccountController'
-import BudgetController from './Controllers/BudgetController'
-import MonthlyDataController from './Controllers/MonthlyDataController'
-import MonthlySumController from './Controllers/MonthlySumController'
 
 let api = "/api/v1"
 
@@ -22,9 +19,10 @@ let endpoints = [
         { method: 'POST', path: api + '/account', config: AccountController.create },
         { method: 'PUT', path: api + '/account/{id}', config: AccountController.update },
         { method: 'GET', path: api + '/account/{id}', config: AccountController.switchAccount },
-        { method: 'GET', path: api + '/account/{id}/users', config: AccountController.getUsers }, // get users from link
-        { method: 'POST', path: api + '/account/{id}/user', config: AccountController.linkUser }, // add/remove link to/from link
-        { method: 'POST', path: api + '/account/{id}/role', config: AccountController.setRole }
+        { method: 'GET', path: api + '/account/{id}/users', config: AccountController.getUsers },
+        { method: 'POST', path: api + '/account/{id}/user', config: AccountController.inviteUser }, 
+        { method: 'PUT', path: api + '/account/{id}/user/{sid}', config: AccountController.linkUser }, // add/remove link to/from link
+        { method: 'PUT', path: api + '/account/{id}/user/{sid}/role', config: AccountController.setRole }
 ];
 
 export default endpoints;

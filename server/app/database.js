@@ -3,12 +3,13 @@
 import mongoose from 'mongoose'
 import config from 'config'
 
+// mongoose.set('debug', true);
 let Admin = mongoose.mongo.Admin;
 let dbconfig = config.get('database');
 
 let conn = new class Database {
 	constructor(){
-		mongoose.connect('mongodb://' + dbconfig.host + '/' + dbconfig.db)
+		mongoose.connect('mongodb://' + dbconfig.host + '/' + dbconfig.db, { config: { autoIndex: false } })
 		this._mainDb = mongoose.connection
 		this._tenantDb = null;
 		this._mainDb.on('error', console.error.bind(console, 'connection error'));
@@ -36,7 +37,7 @@ let conn = new class Database {
 			this._tenantDb.close()
 			delete this._tenantDb
 		}
-		this._tenantDb = mongoose.createConnection('mongodb://' + dbconfig.host + '/' + name);
+		this._tenantDb = mongoose.createConnection('mongodb://' + dbconfig.host + '/' + name, { config: { autoIndex: false } });
 		this._tenantDb.on('error', console.error.bind(console, 'connection error'));
 		this._tenantDb.once('open', () => {
 		    console.log("Connection with tenant database succeeded.");

@@ -1,30 +1,38 @@
-#switch account
+disable previous token after reseting password
 
-////////////checkin////////////
-#server.inject()
-
-
-#log to file, log rotation
-
-#forget password sending email 
-#invite user
-////////////checkin////////////
-
-#fix api todo
-
-////////////checkin////////////
-
-use embedded document for later sycn
-#sync acount user link
-#two phase commits
-
-#connections still exisit in mongoose.connections after being closed
-
-#index duplicate key
-
-////////////checkin////////////
 
 simplify controller
 
-auth check
+nice email for forgetpassword
 
+#connections still exisit in mongoose.connections after being closed
+
+Sync problem: 
+	#use embedded document for later sycn
+	#use async.retry or retryable
+	#two phase commits
+
+mongoose index problem
+
+
+
+
+
+
+
+
+
+
+
+
+
+#inplement deactive user and account respectively, then change if(!user) to if(user.status == 'inactive') in findbyid
+
+
+
+
+
+action code
+general 0
+forget password 1
+invite user 2

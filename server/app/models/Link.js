@@ -13,7 +13,11 @@ let LinkSchema   = new Schema({
 }, { strict: false });
 
 LinkSchema.index({user: 1, account: 1}, {unique: true});
+let model = mongoose.model('Link', LinkSchema)
 
+model.on('index', (err) => {
+  if (err) console.error(err); // error occurred during index creation
+})
 // let getModel = (db) => {
 // 	if(db){
 // 		return db.model('Link', LinkSchema);
@@ -22,4 +26,4 @@ LinkSchema.index({user: 1, account: 1}, {unique: true});
 // 		return mongoose.model('Link', LinkSchema)
 // 	}
 // }
-export default mongoose.model('Link', LinkSchema)
+export default model

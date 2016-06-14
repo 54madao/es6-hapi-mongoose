@@ -11,20 +11,9 @@ import { default as log } from './logger'
 // import connection from './database'
 import endpoints from './routes'
 
-
 // Global dependencies (available across the whole App)
 GLOBAL.log = log
 ///////////////////////////////////////
-//
-// Start the server
-//
-// ///////////////////////////////////////
-// server.start(() => {
-//   log.info({
-//     'Server running at': server.info.uri,
-//     'With NODE_ENV': process.env.NODE_ENV || 'local'
-//   })
-// })
 
 const server = new Hapi.Server();
 server.connection(config.get('server'));
@@ -40,18 +29,43 @@ const options = {
             args: [{ log: '*', response: '*' }]
         }, {
             module: 'good-console'
-        }, 'stdout']
+        }, 'stdout'],
+        file: [{
+            module: 'good-squeeze',
+            name: 'Squeeze',
+            args: [{ log: '*', request: '*', response: '*', 'error': '*' }]
+        }, {
+            module: 'good-squeeze',
+            name: 'SafeJson',
+            args: [
+                null,
+                { separator: ',' }
+            ]
+        }, {
+            module: 'rotating-file-stream',
+            args: [
+                'logs.log',
+                {
+                    size:     '10M', // rotate every 10 MegaBytes written
+                    interval: '1d',
+                    path: './logs'
+                }
+            ]
+        }]
     }
 };
 
 //auth
 const validate = function (decoded, request, callback) {
-    var error,
-    credentials = {exp: decoded.exp, token: request.auth.token, id: decoded.id, email: decoded.email, role: "SUPER_ADMIN"} || {};
-    // console.log(decoded);
-    //decoded.iat
-    //decoded.exp
+    let error
+    // {exp: decoded.exp, token: request.auth.token, id: decoded.id, email: decoded.email, role: "SUPER_ADMIN"} || {};
 
+    // for(let key in decoded){
+    //     credentials[key] = decoded[key]
+    // }
+    let credentials = Object.assign({}, decoded)
+    credentials.token = request.auth.token
+    log.info(credentials);
     if (!credentials) {
         return callback(error, false, credentials);
     }
@@ -99,10 +113,10 @@ server.register([{
     } else {
         server.start((err) => {
             if(err){
-                console.log(err);
+                log.info(err);
             }
             else{
-                console.info('Server started at ' + server.info.uri);
+                log.info('Server started at ' + server.info.uri);
             }
         });
     }

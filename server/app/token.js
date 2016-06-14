@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken' // JsonWebToken implementation for node.js
 import env from 'dotenv'
 
 let Token = {}
-let optionKeys = ['role', 'exp', 'token']
+let optionKeys = ['iat', 'exp', 'token']
 
 Token.sign = (payload) => {
 	return jwt.sign(
@@ -56,4 +56,21 @@ Token.addToken = (credentials, fields) => {
 	return Token.sign(payload);
 }
 
+Token.changeAction = (credentials, action) => {
+	let payload = {}
+	if(credentials.action){
+		credentials.action = action;
+		for(let key in credentials){
+			
+			if(optionKeys.indexOf(key) === -1) {
+				payload[key] = credentials[key];
+			}
+		}
+		return Token.sign(payload);
+	}
+	else{
+		return Token.refresh(credentials);
+	}
+
+}
 export default Token

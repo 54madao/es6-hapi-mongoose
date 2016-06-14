@@ -9,13 +9,12 @@ import Async from 'async'
 import Joi from 'joi'
 import Boom from 'boom'
 import bcrypt from 'bcrypt'
-// import conn from '../database'
-// import mongoose from 'mongoose'
-let saltRounds = 10;
+import env from 'dotenv'
+import SparkPost from 'sparkpost'
 
+let saltRounds = 10;
 let AccountController = {}
 
-//todo check role
 AccountController.index = {
 
     auth: 'token',
@@ -30,13 +29,10 @@ AccountController.index = {
                     success: true,
                     msg: accounts
                 }).header("Authorization", token)        // where token is the JWT 
-                .state("token", token, Token.cookie_options) // set the cookie with options;
+
             } else {
-                reply(Boom.badImplementation({
-                    success: false,
-                    msg:err
-                })).header("Authorization", token)        // where token is the JWT 
-                .state("token", token, Token.cookie_options) // set the cookie with options; // 500 error
+                reply(Boom.badImplementation(err))
+                .header("Authorization", token)        // where token is the JWT 
             }
         });
     }
@@ -51,7 +47,7 @@ AccountController.create = {
         }
     },
     handler: (request, reply) => {
-
+        GLOBAL.log.info("Start creating an account")
         Async.auto({
             findUser: (callback) => {
                 User.findOne({
@@ -86,10 +82,7 @@ AccountController.create = {
 
                         bcrypt.hash(user.password, saltRounds, (err, hash) => {        
                             if(err){
-                                return callback(Boom.badImplementation({
-                                    success: false,
-                                    msg: err
-                                }), null)
+                                return callback(Boom.badImplementation(err), null)
                             }
                             else{
                                 user.password = hash;
@@ -98,10 +91,7 @@ AccountController.create = {
                                         return callback(null, user)
                                     }
                                     else {
-                                        return callback(Boom.badImplementation({
-                                            success: false,
-                                            msg: err
-                                        }), null)
+                                        return callback(Boom.badImplementation(err), null)
                                     }
                                      
                                 });
@@ -109,10 +99,7 @@ AccountController.create = {
                         });
                     }
                     else{
-                        return callback(Boom.badRequest({
-                            success: false,
-                            msg: "Please provide a password"
-                        }), null)
+                        return callback(Boom.badRequest("Please provide a password"), null)
                     }
                 }
             }],
@@ -129,16 +116,10 @@ AccountController.create = {
                         return callback(null, account);
                     }
                     else if (11000 === err.code || 11001 === err.code) {
-                        return callback(Boom.forbidden({
-                            success: false,
-                            msg: "please provide another account name, it already exist"
-                        }), null)
+                        return callback(Boom.forbidden(err), null)
                     }
                     else{
-                        return callback(Boom.badImplementation({
-                            success: false,
-                            msg: err
-                        }), null)
+                        return callback(Boom.badImplementation(err), null)
                     }
                 })
             },
@@ -154,10 +135,7 @@ AccountController.create = {
                         return callback(null, link)
                     } 
                     else {
-                        return callback(Boom.badImplementation({
-                            success: false,
-                            msg: err
-                        }), null)
+                        return callback(Boom.badImplementation(err), null)
                     }
                 });
             }]
@@ -182,7 +160,27 @@ AccountController.create = {
 AccountController.update = {
     auth: 'token',
     plugins: {'hapiAuthorization': {roles: ['SUPER_ADMIN', 'ADMIN']}},
+    pre: [
+        {
+            assign: 'selfCheck',
+            method: (request, reply) => {
+                if(request.auth.credentials.account != request.params.id && request.auth.credentials.role != 'SUPER_ADMIN'){
+                    reply({
+                        success: false,
+                        msg: 'Unauthorized'
+                    })
+                    .takeover()
+                    .header("Authorization", token)
+                }else{
+                    reply();
+                }
+            }
+        }
+    ],
     handler: (request, reply) => {
+
+        GLOBAL.log.info('Start updating an account')
+
         let token = Token.refresh(request.auth.credentials);
 
         Account.findByIdAndUpdate(
@@ -191,18 +189,19 @@ AccountController.update = {
             {new: true},
             (err, account) => {
                 if (!err) {
-                    reply({
-                        success: true,
-                        msg: account
-                    }).header("Authorization", token)        // where token is the JWT 
-                    .state("token", token, Token.cookie_options) // set the cookie with options;
+                    if(!account){
+                        reply(Boom.forbidden('Account not found.'));
+                    }
+                    else{
+                        reply({
+                            success: true,
+                            msg: account
+                        }).header("Authorization", token)        // where token is the JWT 
+                    }
                 }
                 else{
-                    reply({
-                        success: false,
-                        msg: err
-                    }).header("Authorization", token)        // where token is the JWT 
-                    .state("token", token, Token.cookie_options) // set the cookie with options;
+                    reply(Boom.badImplementation(err))
+                    .header("Authorization", token)        // where token is the JWT 
                 }
             }
         )
@@ -211,238 +210,354 @@ AccountController.update = {
 
 AccountController.switchAccount = {
     auth: 'token',
+    pre: [
+        {
+            assign: 'roleCheck',
+            method: (request, reply) => {
+                Link.findOne({
+                    $and: [
+                        {user: request.auth.credentials.id},
+                        {account: request.params.id}
+                    ]
+                }, (err, link) => {
+                    if(!err){
+                        if(!link){
+                            reply(Boom.forbidden("Link not found"))
+                            .takeover()
+                            .header("Authorization", token)
+                        }else{
+                            reply(link);
+                        }
+                    }else{
+                        reply(Boom.badImplementation(err)).takeover()
+                        .header("Authorization", token)
+                    }
+                })
+            }
+        }
+    ],
     handler: (request, reply) => {
-        let token = Token.addToken(request.auth.credentials, {account: request.params.id})
+        GLOBAL.log.info('Start switching to an account')
 
-        reply().header("Authorization", token)        // where token is the JWT 
-        .state("token", token, Token.cookie_options) // set the cookie with options;
+        let token = Token.refresh(request.auth.credentials);
+
+        Account.findById( request.params.id, (err, account) => {
+            if(!err){
+                if(!account){
+                    reply(Boom.forbidden("Account not found"))
+                    .header("Authorization", token)
+                }else{
+                    let link = request.pre.roleCheck
+
+                    let token = Token.addToken(request.auth.credentials, {account: request.params.id, role: link.role})
+
+                    reply({
+                        success: true,
+                        msg: {
+                            account: account,
+                            link: link
+                        }
+                    }).header("Authorization", token)        // where token is the JWT 
+                }
+            }else{
+                reply(Boom.badImplementation(err))
+                .header("Authorization", token)
+            }
+        })
     }
 }
+
 //todo: group each item togather
 AccountController.getUsers = {
     auth: 'token',
     plugins: {'hapiAuthorization': {roles: ['SUPER_ADMIN', 'ADMIN']}},
+    pre: [
+        {
+            assign: 'selfCheck',
+            method: (request, reply) => {
+                if(request.auth.credentials.account != request.params.id && request.auth.credentials.role != 'SUPER_ADMIN'){
+                    reply({
+                        success: false,
+                        msg: 'Unauthorized'
+                    }).takeover()
+                    .header("Authorization", token)
+                }else{
+                    reply();
+                }
+            }
+        }
+    ],
     handler: (request, reply) => {
+
         let token = Token.refresh(request.auth.credentials);
-        Link.find({account: request.params.id})
-        .populate('user')
-        .exec((err, link) => {
+
+        Async.auto({
+            findAccount: (callback) => {
+                Account.findById(request.params.id, (err, account) => {
+                    if(!err){
+                        if(!account){
+                            return callback(Boom.forbidden("Account not found"), null);
+                        }else{
+                            return callback(null, null);
+                        }
+                    }else{
+                        return callback(Boom.badImplementation(err), null);
+                    }
+                })
+            },
+            getUsers: (callback) => {
+                Link.find({account: request.params.id})
+                    .populate('user')
+                    .exec((err, link) => {
+                        if(!err){
+                            return callback(null, link);
+                        }
+                        else{
+                            return callback(Boom.badImplementation(err), null)
+                        }
+                    });
+            }
+        }, (err, results) => {
+
             if(!err){
                 reply({
                     success: true,
-                    msg: link
+                    msg: results.getUsers
                 }).header("Authorization", token)        // where token is the JWT 
-                .state("token", token, Token.cookie_options) // set the cookie with options;
             }
             else{
-                reply(Boom.badImplementation({
-                    success: false,
-                    msg: err
-                })).header("Authorization", token)        // where token is the JWT 
-                .state("token", token, Token.cookie_options) // set the cookie with options;
+                reply(err)
+                .header("Authorization", token)        // where token is the JWT 
             }
-        });
+
+        })
     }
 }
 
 AccountController.linkUser = {
     auth: 'token',
-    plugins: {'hapiAuthorization': {roles: ['SUPER_ADMIN', 'ADMIN']}},
+    pre: [
+        {
+            assign: 'actionCheck',
+            method: (request, reply) => {
+                if(request.auth.credentials.action !== '2' && request.auth.credentials.role != 'SUPER_ADMIN'){
+                    reply({
+                        success: false,
+                        msg: 'Unauthorized'
+                    }).takeover()
+                    .header("Authorization", request.auth.token)
+                }
+                else{
+                    reply();
+                }
+            }
+        },
+        {
+            assign: 'selfCheck',
+            method: (request, reply) => {
+                if(request.auth.credentials.account != request.params.id && request.auth.credentials.role != 'SUPER_ADMIN'){
+                    reply({
+                        success: false,
+                        msg: 'Unauthorized'
+                    }).takeover()
+                    .header("Authorization", token)
+                }else{
+                    reply();
+                }
+            }
+        }
+    ],
     validate: {
         payload: {
-            emails: Joi.array().items(Joi.string().email().lowercase()).single().required(),
+            // emails: Joi.array().items(Joi.string().email().lowercase()).single().required(),
             // email: Joi.string().email().lowercase().required(),
             link: Joi.boolean().required()
         }
     },
     handler: (request, reply) => {
-        let token = Token.refresh(request.auth.credentials);
 
-        let report = [];
-        Async.each(request.payload.emails, (email, callback) => {
-            Async.auto({
-                findUser: (callback) =>{
-                    User.findOne({
-                        'email': email
-                    }, (err, user) =>{
-                        if(!err){
-                            if(!user){
-                                return callback(Boom.forbidden(
-                                    'Linking failed. User not found.'
-                                ),null);
-                            }
-                            else{
-                                return callback(null, user);
-                            }
+        GLOBAL.log.info("Start linking")
+
+        let token = Token.changeAction(request.auth.credentials, '0')
+
+        // let report = [];
+        // Async.each(request.payload.emails, (email, callback) => {
+        //     Async.auto({
+        //         
+        //     }, (err, results) => {
+ 
+        //         return callback();
+        //     });
+        // }, (err) => {
+        //     reply(report).header("Authorization", token)        // where token is the JWT 
+        //     .state("token", token, Token.cookie_options) // set the cookie with options;
+        // }); 
+
+        
+        Async.auto({
+            findAccount: (callback) => {
+                Account.findById(request.params.id, (err, account) => {
+                    if(!err){
+                        if(!account){
+                            return callback(Boom.forbidden("Account not found"),null);
+                        }else{
+                            return callback(null, null);
+                        }
+                    }else{
+                        return callback(Boom.badImplementation(err), null);
+                    }
+                })
+            },
+            findUser: (callback) => {
+                User.findById(request.params.sid, (err, user) => {
+                    if(!err){
+                        if(!user){
+                            return callback(Boom.forbidden('Linking failed. User not found.'),null);
                         }
                         else{
-                            return callback(Boom.badImplementation(err),null);
+                            return callback(null, null);
                         }
-                    })
-                },
-                linking: ['findUser', (results, callback) => {
-                    if(request.payload.link){
-                        let link = new Link({
-                            user: results.findUser._id,
-                            account: request.params.id,
-                            role: 'READONLY'
-                        });
-                        link.save((err, link) => {
-                            if (!err) {
-                                return callback(null, link);
-                            } 
-                            else if (11000 === err.code || 11001 === err.code) {
-                                return callback(Boom.forbidden(
-                                    "please provide another user email or use another account, link already exist"
-                                ), null);
-                            } else 
-                                return callback(Boom.forbidden(err), null); // HTTP 403
-                        });
                     }
                     else{
-                        Link.findOne({
-                            $and: [
-                                {user: results.findUser._id},
-                                {account: request.params.id}
-                            ]
-                        }, (err, link) => {
-                            if(!err){
-                                link.remove();
-                                return callback(null, link);
-                            } else {
-                                return callback(Boom.badImplementation(err), null);
-                            }
-                        });
+                        return callback(Boom.badImplementation(err), null);
                     }
-                }]
-            }, (err, results) => {
-                // console.log('err = ', err);
-                // console.log('results = ', results);
-
-                if(err){
-                    report.push({
-                        success: false,
-                        msg: {
-                            error: err,
-                            email: email
-                        }
+                })
+            },
+            linking: (callback) => {
+                if(request.payload.link){
+                    let link = new Link({
+                        user: request.params.sid,
+                        account: request.params.id,
+                        role: 'VIEWONLY'
+                    });
+                    link.save((err, link) => {
+                        if (!err) {
+                            return callback(null, link);
+                        } 
+                        else if (11000 === err.code || 11001 === err.code) {
+                            return callback(Boom.forbidden(
+                                "please provide another user email or use another account, link already exist"
+                            ), null);
+                        } else 
+                            return callback(Boom.forbidden(err), null); // HTTP 403
                     });
                 }
                 else{
-                    report.push({
-                        success: true,
-                        msg: {
-                            link: results.linking,
-                            email: email
+                    Link.findOne({
+                        $and: [
+                            {user: request.params.sid},
+                            {account: request.params.id}
+                        ]
+                    }, (err, link) => {
+                        if(!err){
+                            link.remove();
+                            return callback(null, link);
+                        } else {
+                            return callback(Boom.badImplementation(err), null);
                         }
-                    })
+                    });
                 }
-                return callback();
-            });
-        }, (err) => {
-            reply(report).header("Authorization", token)        // where token is the JWT 
-            .state("token", token, Token.cookie_options) // set the cookie with options;
-        }); 
-        
+            }
+        }, (err, results) => {
+            if(err){
+                reply(err).header("Authorization", token)        // where token is the JWT 
+            }
+            else{
+                // reply(results.linking).created('/account/' + request.params.id);
+                reply({
+                    success: true,
+                    msg: results.linking
+                }).header("Authorization", token)        // where token is the JWT 
+            }
+        });
     }
 }
 
 AccountController.setRole = {
     auth: 'token',
     plugins: {'hapiAuthorization': {roles: ['SUPER_ADMIN', 'ADMIN']}},
+    pre: [
+        {
+            assign: 'selfCheck',
+            method: (request, reply) => {
+                if(request.auth.credentials.account != request.params.id && request.auth.credentials.role != 'SUPER_ADMIN'){
+                    reply({
+                        success: false,
+                        msg: 'Unauthorized'
+                    }).takeover()
+                    .header("Authorization", token)
+                }else{
+                    reply();
+                }
+            }
+        }
+    ],
     validate: {
         payload: {
-            email: Joi.string().email().lowercase().required(),
             role: Joi.string().required() 
         }
     },
     handler: (request, reply) => {
         let token = Token.refresh(request.auth.credentials);
-
         Async.auto({
-            // auth: (callback) => {
-            //     Link.findOne({
-            //         $and: [
-            //             {user: request.auth.credentials.id},
-            //             {account: request.params.id}
-            //         ]
-            //     },(err, link) => {
-            //         if(!err){
-            //             if(link.role == "ADMIN"){
-            //                 return callback(null, link);
-            //             }
-            //             else{
-            //                 return callback(Boom.forbidden({
-            //                     success: false,
-            //                     msg: "Not ADMIN"
-            //                 }), null);
-            //             }
-            //         }else{
-            //             return callback(Boom.badImplementation({
-            //                 success: false,
-            //                 msg: err
-            //             }));
-            //         }
-            //     });
-            // },
-            findUser: (callback) => {
-                User.findOne({
-                    'email': request.payload.email
-                }, (err, user) => {
+            findAccount: (callback) => {
+                Account.findById(request.params.id, (err, account) => {
                     if(!err){
-                        if(!user){
-                            return callback(Boom.forbidden({
-                                success: false,
-                                msg: 'Linking failed. User not found.'
-                            }),null);
-                            return;
+                        if(!account){
+                            return callback(Boom.forbidden("Account not found"),null);
+                        }else{
+                            return callback(null, null);
                         }
-                        else{
-                            return callback(null, user);
-                            return;
-                        }
-                    }
-                    else{
-                        return callback(Boom.badImplementation({
-                            success: false,
-                            msg: err
-                        }),null);
-                        return;
+                    }else{
+                        return callback(Boom.badImplementation(err), null);
                     }
                 })
             },
-            assign: ['findUser', (results, callback) => {
-                 Link.findOne({
+            findUser: (callback) => {
+                User.findById(request.params.sid, (err, user) => {
+                    if(!err){
+                        if(!user){
+                            return callback(Boom.forbidden('Linking failed. User not found.'),null);
+                        }
+                        else{
+                            return callback(null, null);
+                        }
+                    }
+                    else{
+                        return callback(Boom.badImplementation(err), null);
+                    }
+                })
+            },
+            assign: (callback) => {
+                Link.findOne({
                     $and: [
-                        {user: results.findUser._id},
+                        {user: request.params.sid},
                         {account: request.params.id}
                     ]
                 }, (err, link) => {
                     if(!err){
-                        link.role = request.payload.role;
-                        link.save((err, link) => {
-                            if (!err) {
-                                return callback(null, link);
-                            } else {
-                                return callback(Boom.forbidden({
-                                    success: false,
-                                    msg: err
-                                }), null);
-                            }
-                        });
+                        if(!link){
+                            callback(Boom.forbidden('Link not found'), null)
+                        }
+                        else{
+                            link.role = request.payload.role;
+                            link.save((err, link) => {
+                                if (!err) {
+                                    return callback(null, link);
+                                } else {
+                                    return callback(Boom.badImplementation(err), null);
+                                }
+                            });  
+                        }
                     }
                     else{
-                        return callback(Boom.badImplementation({
-                            success: false,
-                            msg: err
-                        }), null);
+                        return callback(Boom.badImplementation(err), null);
                     }
                 })
-            }]
+            }
         }, (err, results) => {
             if(err){
                 reply(err).header("Authorization", token)        // where token is the JWT 
-                .state("token", token, Token.cookie_options) // set the cookie with options;
             }
             else{
                 // reply(results.linking).created('/account/' + request.params.id);
@@ -450,7 +565,137 @@ AccountController.setRole = {
                     success: true,
                     msg: results.assign
                 }).header("Authorization", token)        // where token is the JWT 
-                .state("token", token, Token.cookie_options) // set the cookie with options
+            }
+        });
+    }
+}
+
+AccountController.inviteUser = {
+    auth: 'token',
+    plugins: {'hapiAuthorization': {roles: ['SUPER_ADMIN', 'ADMIN']}},
+    pre: [
+        {
+            assign: 'selfCheck',
+            method: (request, reply) => {
+                if(request.auth.credentials.account != request.params.id && request.auth.credentials.role != 'SUPER_ADMIN'){
+                    reply({
+                        success: false,
+                        msg: 'Unauthorized'
+                    }).takeover()
+                    .header("Authorization", token)
+                }else{
+                    reply();
+                }
+            }
+        }
+    ],
+    validate: {
+        payload: {
+            email: Joi.string().email().lowercase().required()
+        }
+    },
+    handler: (request, reply) => {
+
+        let token = Token.refresh(request.auth.credentials);
+
+        User.findOne({
+            'email': request.payload.email
+        }, (err, user) => {
+            if (!err) {
+                // if no user found
+                if (!user) {
+                    let token = Token.sign({
+                        email: request.payload.email,
+                        account: request.params.id,
+                        action: '2'
+                    });
+
+                    let sp = new SparkPost(env.config().SPARKPOST_SECRET);
+
+                    sp.transmissions.send({
+                      transmissionBody: {
+                        content: {
+                          from: 'testing@sparkpostbox.com',
+                          subject: 'Hello, World!',
+                          html:'<html><body><p>Testing SparkPost - the world\'s most awesomest email service! Click Here: ' + token + ' </p></body></html>'
+                        },
+                        recipients: [
+                          {address: request.payload.email}
+                        ]
+                      }
+                    }, (err, res) => {
+                        if (err) {
+                            reply({
+                                success: false,
+                                msg: err
+                            })
+                        } else {
+                            reply({
+                                success: true,
+                                msg: 'Woohoo! You just sent your first mailing!'
+                            })
+                        }
+                    });
+                } else {
+                    Link.findOne({
+                        $and: [
+                            {user: user._id},
+                            {account: request.params.id}
+                        ]
+                    }, (err, link) => {
+                        if(!err){
+                            if(!link){
+                                
+                                let token = Token.sign({
+                                    id: user._id,
+                                    email: request.payload.email,
+                                    account: request.params.id,
+                                    action: '2'
+                                });
+
+                                let sp = new SparkPost(env.config().SPARKPOST_SECRET);
+
+                                sp.transmissions.send({
+                                  transmissionBody: {
+                                    content: {
+                                      from: 'testing@sparkpostbox.com',
+                                      subject: 'Hello, World!',
+                                      html:'<html><body><p>Testing SparkPost - the world\'s most awesomest email service! Click Here: ' + token + ' </p></body></html>'
+                                    },
+                                    recipients: [
+                                      {address: request.payload.email}
+                                    ]
+                                  }
+                                }, (err, res) => {
+                                    if (err) {
+                                        reply({
+                                            success: false,
+                                            msg: err
+                                        })
+                                    } else {
+                                        reply({
+                                            success: true,
+                                            msg: 'Woohoo! You just sent your first mailing!'
+                                        })
+                                    }
+                                });
+                
+                            }else{
+                                reply({
+                                    success: false,
+                                    msg: request.payload.email + " has been linked to this account"
+                                }).header("Authorization", token)        // where token is the JWT 
+                            }
+                        }
+                        else{
+                            reply(Boom.badImplementation(err), null)
+                            .header("Authorization", token)        // where token is the JWT 
+                        }
+                    })                    
+                }
+            } else {
+                reply(Boom.badImplementation(err))
+                .header("Authorization", token)        // where token is the JWT 
             }
         });
     }
